@@ -36,7 +36,17 @@ final class Core {
     public static function requireCan(string $permission): void { self::requireLogin(); if(!self::can($permission)) self::fail(403,'Je hebt geen toestemming voor deze actie.'); }
     public static function courseManager(int $course): bool { $u=self::user(); if(!$u)return false; if($u['role']==='admin')return true; $q=self::db()->prepare('SELECT 1 FROM course_trainers WHERE course_id=? AND user_id=?');$q->execute([$course,$u['id']]);return(bool)$q->fetchColumn(); }
     public static function enrolled(int $course): bool { $u=self::user();if(!$u)return false;$q=self::db()->prepare("SELECT 1 FROM enrollments WHERE course_id=? AND user_id=? AND status='approved'");$q->execute([$course,$u['id']]);return(bool)$q->fetchColumn(); }
-    public static function redirect(string $route='dashboard', array $args=[]): never { $base=rtrim((string)self::config('base_url',''),'/'); $url=$base.'/index.php?r='.rawurlencode($route);if($args)$url.='&'.http_build_query($args); header('Location: '.$url, true, 302);exit; }
+    public static function redirect(string $route='dashboard', array $args=[]): never {
+        // An empty configured base URL means: use the folder containing the active front controller.
+        // This supports both a dedicated public document-root and installations reached through /public.
+        $base=rtrim((string)self::config('base_url',''),'/');
+        if($base==='') {
+            $script=str_replace('\\','/',$_SERVER['SCRIPT_NAME'] ?? '/index.php');
+            $base=rtrim(dirname($script),'/');
+            if($base==='.') $base='';
+        }
+        $url=$base.'/index.php?r='.rawurlencode($route);if($args)$url.='&'.http_build_query($args); header('Location: '.$url, true, 302);exit;
+    }
     public static function fail(int $code,string $message): never { http_response_code($code); echo '<h1>Er ging iets mis</h1><p>'.self::e($message).'</p>';exit; }
     public static function audit(string $action,string $type,?int $id=null):void { try{$q=self::db()->prepare('INSERT INTO audit_logs(user_id,action,entity_type,entity_id,ip_hash,created_at)VALUES(?,?,?,?,?,NOW())');$q->execute([self::user()['id']??null,$action,$type,$id,hash('sha256',$_SERVER['REMOTE_ADDR']??'')]);}catch(PDOException){} }
 }
