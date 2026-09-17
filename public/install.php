@@ -12,7 +12,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $sql=file_get_contents($root.'/database/migrations/001_initial.sql'); foreach(array_filter(array_map('trim',explode(';',$sql))) as $statement)$pdo->exec($statement);
     $hash=password_hash($adminPass,PASSWORD_ARGON2ID); $q=$pdo->prepare('INSERT INTO users(role_id,email,password_hash,first_name,last_name,created_at,updated_at)VALUES(1,?,?,?,?,?,NOW())');$q->execute([$adminEmail,$hash,trim($_POST['first_name']??'Beheerder'),trim($_POST['last_name']??''),date('Y-m-d H:i:s')]);
     $values=['app_name'=>'Van Stal Academie','base_url'=>rtrim(trim($_POST['base_url']??''),'/'),'timezone'=>'Europe/Amsterdam','default_locale'=>'nl','db'=>['host'=>$host,'port'=>$port,'name'=>$db,'user'=>$user,'pass'=>$pass,'charset'=>'utf8mb4'],'security'=>['session_name'=>'vanstal_lms','login_attempts'=>5,'login_window_minutes'=>15]];
-    if(!is_dir($root.'/config')||file_put_contents($config,"<?php\nreturn ".var_export($values,true).";\n",LOCK_EX)===false)throw new RuntimeException('Configbestand kon niet worden geschreven. Maak config schrijfbaar en probeer opnieuw.');
+    $configDir=$root.'/config';
+    if(!is_dir($configDir) && !mkdir($configDir,0750,true))throw new RuntimeException('Map config kon niet worden aangemaakt. Maak de projectmap schrijfbaar en probeer opnieuw.');
+    if(file_put_contents($config,"<?php\nreturn ".var_export($values,true).";\n",LOCK_EX)===false)throw new RuntimeException('Configbestand kon niet worden geschreven. Maak de map config schrijfbaar en probeer opnieuw.');
     header('Location: index.php?r=login&installed=1');exit;
   }catch(Throwable $e){$errors[]='Installatie mislukt: '.$e->getMessage();}
 }
